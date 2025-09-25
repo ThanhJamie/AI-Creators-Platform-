@@ -1,5 +1,6 @@
+import { internal } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
-
+import { v } from "convex/values";
 export const store = mutation({
   args: {},
   handler: async (ctx) => {
@@ -10,7 +11,7 @@ export const store = mutation({
 
     // Check if we've already stored this identity before
     const user = await ctx.db
-      .query("user") // Sửa từ "users" thành "user"
+      .query("users") // Sửa từ "users" thành "user"
       .withIndex("by_token", (q) =>
         q.eq("tokenIdentifier", identity.tokenIdentifier)
       )
@@ -25,8 +26,7 @@ export const store = mutation({
     }
 
     // If it's a new identity, create a new `User`.
-    return await ctx.db.insert("user", {
-      // Sửa từ "users" thành "user"
+    return await ctx.db.insert("users", {
       name: identity.name ?? "Anonymous",
       tokenIdentifier: identity.tokenIdentifier,
       email: identity.email,
@@ -45,7 +45,7 @@ export const getCurrentUser = query({
     }
 
     const user = await ctx.db
-      .query("user") // Sửa từ "users" thành "user"
+      .query("users") // Sửa từ "users" thành "user"
       .withIndex("by_token", (q) =>
         q.eq("tokenIdentifier", identity.tokenIdentifier)
       )
@@ -56,5 +56,43 @@ export const getCurrentUser = query({
     }
 
     return user;
+  },
+});
+
+export const updateUsername = mutation({
+  args: {
+    username: v.string(),
+  },
+
+  handler: async (ctx, args) => {
+    const user = await ctx.runQuery(internal.users.getCurrentUser);
+    const usernameRegex = /^[a-zA-Z0-9_-]+$/;
+    if (!usernameRegex.test(args.username)) {
+      throw new Error(
+        "Username can only contain letters, numbers, underscores, and hyphens."
+      );
+    }
+
+    if (args.username.length < 3 || args.username.length > 20) {
+      throw new Error("Username must be between 3 and 20 characters long.");
+    }
+
+    if (args.username !== user.username) {
+      const existingUser = await ctx.db
+        .query("users")
+        .withIndex("by_username", (q) => q.eq("username", args.username))
+        .unique();
+
+      if (existingUser) {
+        throw new Error("Username is already taken");
+      }
+    }
+
+    await ctx.db.patch(user._id, {
+      username: args.username,
+      lastActiveAt: Date.now(),
+    });
+
+    return user._id;
   },
 });

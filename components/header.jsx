@@ -1,18 +1,21 @@
 "use client";
 
 import { SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
-import React from "react";
 import { Unauthenticated, Authenticated } from "convex/react";
 import { BarLoader } from "react-spinners";
 import { useStoreUserEffect } from "@/hooks/useStoreUserEffect";
-import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Button } from "./ui/button";
 import { LayoutDashboard } from "lucide-react";
+import Link from "next/link";
 const Header = () => {
   const { isLoading, isAuthenticated } = useStoreUserEffect();
   const path = usePathname();
+
+  if (path.includes("dashboard")) {
+    return null;
+  }
 
   return (
     <header className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-3xl px-4">
@@ -43,35 +46,36 @@ const Header = () => {
             </Link>
           </div>
         )}
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <Authenticated>
+            <Link href={"/dashboard"}>
+              <Button
+                variant={"outline"}
+                className={"hidden sm:flex"}
+                size={"sm"}
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                <span className="hidden md:inline ml-2">Dashboard</span>
+              </Button>
+            </Link>
+            <UserButton />
+          </Authenticated>
 
-        <Authenticated>
-          <Link href={"/dashboard"}>
-            <Button
-              variant={"outline"}
-              className={"hidden sm:flex"}
-              size={"sm"}
-            >
-              <LayoutDashboard className="h-4 w-4" />
-              <span className="hidden md:inline ml-2">Dashboard</span>
-            </Button>
-          </Link>
-          <UserButton />
-        </Authenticated>
-
-        <Unauthenticated>
-          <SignInButton>
-            <Button size={"sm"}>Sign In</Button>
-          </SignInButton>
-          <SignUpButton>
-            <Button
-              size={"sm"}
-              variant={"primary"}
-              className={"whitespace-nowrap"}
-            >
-              Get Started
-            </Button>
-          </SignUpButton>
-        </Unauthenticated>
+          <Unauthenticated>
+            <SignInButton>
+              <Button size={"sm"}>Sign In</Button>
+            </SignInButton>
+            <SignUpButton>
+              <Button
+                size={"sm"}
+                variant={"primary"}
+                className={"whitespace-nowrap"}
+              >
+                Get Started
+              </Button>
+            </SignUpButton>
+          </Unauthenticated>
+        </div>
 
         {isLoading && (
           <div className="fixed bottom-0 left-0 w-full z-40 flex justify-center">
