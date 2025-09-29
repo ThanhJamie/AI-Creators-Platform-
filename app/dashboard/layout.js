@@ -2,6 +2,8 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { api } from "@/convex/_generated/api";
+import { useConvexQuery } from "@/hooks/user-convex-query";
 import { cn } from "@/lib/utils";
 import { UserButton } from "@clerk/nextjs";
 import {
@@ -44,6 +46,7 @@ const sidebarItems = [
 const DashBoardLayout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const pathname = usePathname();
+  const { data: draftPost } = useConvexQuery(api.posts.getUserDraft);
   return (
     <div className="min-h-screen bg-slate-900 text-white">
       {/* Mobile Sidebar */}
@@ -97,7 +100,7 @@ const DashBoardLayout = ({ children }) => {
                   <item.icon />
                   <span className="font-medium">{item.title}</span>
 
-                  {item.title === "Create Post" && true && (
+                  {item.title === "Create Post" && draftPost && (
                     <Badge
                       variant={"secondary"}
                       className={

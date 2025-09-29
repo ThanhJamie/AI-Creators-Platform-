@@ -1,7 +1,10 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+
 export default defineSchema({
+  // Users table
   users: defineTable({
+    // Basic user info from Clerk
     name: v.string(),
     email: v.string(),
     tokenIdentifier: v.string(), // Clerk user ID for auth
@@ -18,21 +21,27 @@ export default defineSchema({
     .searchIndex("search_name", { searchField: "name" }) // User search
     .searchIndex("search_email", { searchField: "email" }),
 
+  // Posts/Articles - Main content
   posts: defineTable({
     title: v.string(),
-    content: v.string(),
+    content: v.string(), // Rich text content (JSON string or HTML)
     status: v.union(v.literal("draft"), v.literal("published")),
 
+    // Author relationship
     authorId: v.id("users"),
 
+    // Content metadata
     tags: v.array(v.string()),
-    category: v.optional(v.string()),
-    featuredImage: v.optional(v.string()),
+    category: v.optional(v.string()), // Single category
+    featuredImage: v.optional(v.string()), // ImageKit URL
 
+    // Timestamps
     createdAt: v.number(),
     updatedAt: v.number(),
     publishedAt: v.optional(v.number()),
-    scheduledFor: v.optional(v.number()),
+    scheduledFor: v.optional(v.number()), // For scheduled publishing
+
+    // Analytics
     viewCount: v.number(),
     likeCount: v.number(),
   })
@@ -42,6 +51,7 @@ export default defineSchema({
     .index("by_author_status", ["authorId", "status"])
     .searchIndex("search_content", { searchField: "title" }),
 
+  // Comments system
   comments: defineTable({
     postId: v.id("posts"),
     authorId: v.optional(v.id("users")), // Optional for anonymous comments
@@ -60,6 +70,8 @@ export default defineSchema({
     .index("by_post", ["postId"])
     .index("by_post_status", ["postId", "status"])
     .index("by_author", ["authorId"]),
+
+  // Likes system
   likes: defineTable({
     postId: v.id("posts"),
     userId: v.optional(v.id("users")), // Optional for anonymous likes

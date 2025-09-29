@@ -1,5 +1,5 @@
-import { useMutation, useQuery } from "convex/react";
-import { useEffect, useState } from "react";
+import { useQuery, useMutation } from "convex/react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
 export const useConvexQuery = (query, ...args) => {
@@ -8,6 +8,7 @@ export const useConvexQuery = (query, ...args) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Use effect to handle the state changes based on the query result
   useEffect(() => {
     if (result === undefined) {
       setIsLoading(true);
@@ -24,7 +25,11 @@ export const useConvexQuery = (query, ...args) => {
     }
   }, [result]);
 
-  return { data, isLoading, error };
+  return {
+    data,
+    isLoading,
+    error,
+  };
 };
 
 export const useConvexMutation = (mutation) => {
