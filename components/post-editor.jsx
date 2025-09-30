@@ -54,7 +54,8 @@ const PostEditor = ({ initialData = null, mode = "create" }) => {
           id: initialData._id,
           ...postData,
         });
-      } else if (initialData?._id && action === "draft") {
+      } else if (initialData?._id) {
+        // Update existing draft (either saving or publishing)
         resultId = await updatePost({
           id: initialData._id,
           ...postData,
@@ -64,7 +65,8 @@ const PostEditor = ({ initialData = null, mode = "create" }) => {
       }
 
       if (!silent) {
-        const message = "publish" ? "Post published!" : "Draft saved!";
+        const message =
+          action === "publish" ? "Post published!" : "Draft saved!";
         toast.success(message);
         if (action === "publish") router.push("/dashboard/posts");
       }
@@ -117,7 +119,22 @@ const PostEditor = ({ initialData = null, mode = "create" }) => {
     return () => clearInterval(autoSave);
   }, [watchedValues.title, watchedValues.content]);
 
-  const handleImageSelect = (imageData) => {};
+  const handleImageSelect = (imageData) => {
+    if (imageModalType === "featured") {
+      setValue("featuredImage", imageData.url);
+      toast.success("Featured image updated!");
+    } else if (imageModalType === "content" && quillRef) {
+      const quill = quillRef.getEditor();
+      const range = quill.getSelection();
+
+      const index = range ? range.index : quill.getLength();
+
+      quill.insertEmbed(index, "image", imageData.url);
+      quill.setSelection(index + 1);
+      toast.success("Image inserted!");
+    }
+    setIsImageModalOpen(false);
+  };
 
   return (
     <div className="min-h-screen bg-slate-900 text-white">

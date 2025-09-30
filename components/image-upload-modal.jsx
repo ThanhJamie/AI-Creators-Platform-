@@ -11,11 +11,32 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useDropzone } from "react-dropzone";
-import { Check, Loader2, Upload, Wand2 } from "lucide-react";
+import {
+  Check,
+  ImageIcon,
+  Loader2,
+  RefreshCw,
+  Type,
+  Upload,
+  Wand,
+  Wand2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { buildTransformationUrl, uploadToImageKit } from "@/lib/imagekit";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import { Label } from "./ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { Input } from "./ui/input";
+import { Textarea } from "./ui/textarea";
+import { Slider } from "./ui/slider";
 
 const transformationSchema = z.object({
   aspectRatio: z.string().default("original"),
@@ -66,11 +87,12 @@ const ImageUploadModal = ({
   title = "Upload & Transform Image",
 }) => {
   const [activeTab, setActiveTab] = useState("upload");
-  const [uploadImage, setUploadImage] = useState(null);
+  const [uploadedImage, setUploadedImage] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
 
   const [transformedImage, setTransformedImage] = useState(null);
   const [isTransforming, setIsTransforming] = useState(false);
+
   const { watch, setValue, reset } = useForm({
     resolver: zodResolver(transformationSchema),
     defaultValues: {
@@ -86,11 +108,11 @@ const ImageUploadModal = ({
       dropShadow: false,
     },
   });
-
   const watchedValues = watch();
 
   const handleClose = () => {
     onClose();
+    resetForm();
   };
 
   const onDrop = async (acceptedFiles) => {
@@ -116,7 +138,7 @@ const ImageUploadModal = ({
       const result = await uploadToImageKit(file, fileName);
 
       if (result.success) {
-        setUploadImage(result.data);
+        setUploadedImage(result.data);
         setTransformedImage(result.data.url);
         setActiveTab("transform");
         toast.success(
@@ -140,6 +162,100 @@ const ImageUploadModal = ({
     },
     multiple: false,
   });
+
+  const handleSelectImage = () => {
+    if (transformedImage) {
+      onImageSelected({
+        url: transformedImage,
+        originalUrl: transformedImage?.url,
+        fileId: uploadedImage?.fileId,
+        name: uploadedImage?.name,
+        width: uploadedImage?.width,
+        height: uploadedImage?.height,
+      });
+      onClose();
+      resetForm();
+    }
+  };
+  const resetForm = () => {
+    setUploadedImage(null);
+    setTransformedImage(null);
+    setActiveTab("upload");
+    reset();
+  };
+
+  const applyTransformations = async () => {
+    if (!uploadedImage) return;
+
+    setIsTransforming(true);
+
+    try {
+      let transformationChain = [];
+
+      // Aspect ratio and resizing
+      if (watchedValues.aspectRatio !== "original") {
+        const ratio = ASPECT_RATIOS.find(
+          (r) => r.value === watchedValues.aspectRatio
+        );
+        if (ratio && ratio.width && ratio.height) {
+          transformationChain.push({
+            width: ratio.width,
+            height: ratio.height,
+            focus: watchedValues.smartCropFocus,
+          });
+        } else if (watchedValues.aspectRatio === "custom") {
+          transformationChain.push({
+            width: watchedValues.customWidth,
+            height: watchedValues.customHeight,
+            focus: watchedValues.smartCropFocus,
+          });
+        }
+      }
+
+      // Background removal
+      if (watchedValues.backgroundRemoved) {
+        transformationChain.push({ effect: "removedotbg" });
+      }
+
+      // Drop shadow (only works with transparent background)
+      if (watchedValues.dropShadow && watchedValues.backgroundRemoved) {
+        transformationChain.push({ effect: "dropshadow" });
+      }
+
+      // Text overlay
+      if (watchedValues.textOverlay?.trim()) {
+        transformationChain.push({
+          overlayText: watchedValues.textOverlay,
+          overlayTextFontSize: watchedValues.textFontSize,
+          overlayTextColor: watchedValues.textColor.replace("#", ""),
+          gravity: watchedValues.textPosition,
+          overlayTextPadding: 10,
+        });
+      }
+
+      // Apply transformations
+      const transformedUrl = buildTransformationUrl(
+        uploadedImage.url,
+        transformationChain
+      );
+
+      // Add a small delay to show loading state and allow ImageKit to process
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      setTransformedImage(transformedUrl);
+      toast.success("Transformations applied!");
+    } catch (error) {
+      console.error("Transformation error:", error);
+      toast.error("Failed to apply transformations");
+    } finally {
+      setIsTransforming(false);
+    }
+  };
+  const resetTransformations = () => {
+    reset();
+    setTransformedImage(uploadedImage?.url);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="!max-w-6xl !h-[90vh] overflow-y-auto">
@@ -152,7 +268,7 @@ const ImageUploadModal = ({
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className={"grid w-full grid-cols-2"}>
             <TabsTrigger value="upload">Upload</TabsTrigger>
-            <TabsTrigger value="transform" disabled={!uploadImage}>
+            <TabsTrigger value="transform" disabled={!uploadedImage}>
               Transform
             </TabsTrigger>
           </TabsList>
@@ -183,7 +299,7 @@ const ImageUploadModal = ({
                 </div>
               )}
             </div>
-            {uploadImage && (
+            {uploadedImage && (
               <div className="text-center space-y-4">
                 <Badge
                   variant="secondary"
@@ -193,8 +309,8 @@ const ImageUploadModal = ({
                   Image uploaded successfully!
                 </Badge>
                 <div className="text-sm text-slate-400">
-                  {uploadImage.width} × {uploadImage.height} •{" "}
-                  {Math.round(uploadImage.size / 1024)}KB
+                  {uploadedImage.width} × {uploadedImage.height} •{" "}
+                  {Math.round(uploadedImage.size / 1024)}KB
                 </div>
                 <Button
                   onClick={() => setActiveTab("transform")}
@@ -207,7 +323,312 @@ const ImageUploadModal = ({
             )}
           </TabsContent>
           <TabsContent value="transform" className={"space-y-6"}>
-            Transform section - Coming soon
+            <div className="grid lg:grid-cols-2 gap-6 max-h-[60vh] overflow-y-auto">
+              <div className="space-y-6">
+                <div className="space-y-6">
+                  <h3 className="text-lg font-semibold text-white flex items-center">
+                    <Wand2 className="h-5 m-5 mr-2" />
+                    AI Transformations
+                  </h3>
+                  {/* Background Removal */}
+                  <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700 ">
+                    <div className="flex items-center justify-between mb-2">
+                      <Label className={"text-white font-medium"}>
+                        Remove Background
+                      </Label>
+                      <Button
+                        type="button"
+                        variant={
+                          watchedValues.backgroundRemoved
+                            ? "default"
+                            : "outline"
+                        }
+                        size="sm"
+                        onClick={() =>
+                          setValue(
+                            "backgroundRemoved",
+                            !watchedValues.backgroundRemoved
+                          )
+                        }
+                      >
+                        {watchedValues.backgroundRemoved ? (
+                          <Check className="h-4 w-4" />
+                        ) : (
+                          <X className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                    <p className="text-sm text-slate-400">
+                      AI-powered background removal
+                    </p>
+                  </div>
+                  {/* Drop Shadow */}
+                  <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700 ">
+                    <div className="flex items-center justify-between mb-2">
+                      <Label className={"text-white font-medium"}>
+                        Drop Shadow
+                      </Label>
+                      <Button
+                        type="button"
+                        variant={
+                          watchedValues.dropShadow ? "default" : "outline"
+                        }
+                        size="sm"
+                        disabled={!watchedValues.backgroundRemoved}
+                        onClick={() =>
+                          setValue("dropShadow", !watchedValues.dropShadow)
+                        }
+                      >
+                        {watchedValues.dropShadow ? (
+                          <Check className="h-4 w-4" />
+                        ) : (
+                          <X className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                    <p className="text-sm text-slate-400">
+                      {watchedValues.backgroundRemoved
+                        ? "Add realistic shadow"
+                        : "Requires background removal to work"}
+                    </p>
+                  </div>
+                  {/* Aspect Ratio & Cropping */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-white flex items-center">
+                      Resize & Crop
+                    </h3>
+                    <div className="space-y-3">
+                      <Label className={"text-white"}>Aspect Ratio</Label>
+                      <Select
+                        value={watchedValues.aspectRatio}
+                        onValueChange={(value) =>
+                          setValue("aspectRatio", value)
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ASPECT_RATIOS.map((ratio) => (
+                            <SelectItem key={ratio.value} value={ratio.value}>
+                              {ratio.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {watchedValues.aspectRatio === "custom" && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-white">Width</Label>
+                          <Input
+                            type="number"
+                            value={watchedValues.customWidth}
+                            onChange={(e) =>
+                              setValue(
+                                "customWidth",
+                                parseInt(e.target.value) || 800
+                              )
+                            }
+                            min="100"
+                            max="2000"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-white">Height</Label>
+                          <Input
+                            type="number"
+                            value={watchedValues.customHeight}
+                            onChange={(e) =>
+                              setValue(
+                                "customHeight",
+                                parseInt(e.target.value) || 600
+                              )
+                            }
+                            min="100"
+                            max="2000"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {watchedValues.aspectRatio !== "original" && (
+                      <div>
+                        <Label className={"text-white"}>Aspect Ratio</Label>
+
+                        <Select
+                          value={watchedValues.smartCropFocus}
+                          onValueChange={(value) =>
+                            setValue("smartCropFocus", value)
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SMART_CROP_OPTIONS.map((option) => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                              >
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                  {/* Text Overlay */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-white flex items-center">
+                      <Type className="h-5 w-5 mr-2" />
+                      Text Overlay
+                    </h3>
+
+                    <div className="space-y-3">
+                      <Label className={"text-white"}>Text</Label>
+                      <Textarea
+                        value={watchedValues.textOverlay}
+                        onChange={(e) =>
+                          setValue("textOverlay", e.target.value)
+                        }
+                        placeholder="Enter text to overlay on the image"
+                        row={3}
+                      />
+                    </div>
+                    {watchedValues.textOverlay && (
+                      <>
+                        <div className="space-y-3">
+                          <Label className="text-white">
+                            Font Size: {watchedValues.textFontSize}px
+                          </Label>
+                          <Slider
+                            value={[watchedValues.textFontSize]}
+                            onValueChange={(value) =>
+                              setValue("textFontSize", value[0])
+                            }
+                            max={200}
+                            min={12}
+                            step={2}
+                            className="w-full"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <Label className="text-white">Text Color</Label>
+                            <Input
+                              type="color"
+                              value={watchedValues.textColor}
+                              onChange={(e) =>
+                                setValue("textColor", e.target.value)
+                              }
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-white">Position</Label>
+                            <Select
+                              value={watchedValues.textPosition}
+                              onValueChange={(value) =>
+                                setValue("textPosition", value)
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {TEXT_POSITIONS.map((position) => (
+                                  <SelectItem
+                                    key={position.value}
+                                    value={position.value}
+                                  >
+                                    {position.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  {/* Action Buttons */}
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={applyTransformations}
+                      disabled={isTransforming}
+                      variant={"primary"}
+                    >
+                      {isTransforming ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Wand2 className="h-4 w-4 mr-2" />
+                      )}
+                      Apply Transformations
+                    </Button>
+                    <Button onClick={resetTransformations} variant={"outline"}>
+                      <RefreshCw className="h-4 w-4 mr-2" /> Reset
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-white flex items-center">
+                  <ImageIcon className="h-5 w-5 mr-2" />
+                  Preview
+                </h3>
+
+                {transformedImage && (
+                  <div className="relative">
+                    <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                      <img
+                        src={transformedImage}
+                        alt="Transformed Preview"
+                        className="w-full h-auto max-h-96 object-contain rounded-lg mx-auto"
+                        onError={() => {
+                          toast.error("Failed to load transformed image.");
+                          setTransformedImage(uploadedImage.url);
+                        }}
+                      />
+                    </div>
+                    {isTransforming && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
+                        <div className="bg-slate-800 rounded-lg p-4 flex items-center space-x-3">
+                          <Loader2 className="h-5 w-5 animate-spin text-purple-400" />
+                          <span>Applying transformations....</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {uploadedImage && transformedImage && (
+                  <div className="text-center space-y-4 ">
+                    <div className="text-sm text-slate-400">
+                      Current image URL ready for use
+                    </div>
+                    <div className="flex gap-3 justify-center">
+                      <Button
+                        onClick={handleSelectImage}
+                        className={"bg-green-600 hover:bg-green-700 text-white"}
+                      >
+                        {" "}
+                        <Check className="h-4 w-4 mr-2" />
+                        Use This Image
+                      </Button>
+                      <Button
+                        onClick={handleClose}
+                        variant={"outline"}
+                        className={"border-slate-600 hover:bg-slate-700"}
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       </DialogContent>

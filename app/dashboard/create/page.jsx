@@ -19,7 +19,7 @@ const CreatePost = () => {
   );
 
   if (isDraftLoading || userLoading) {
-    return <BarLoader color="#36d7b7" className="mt-4" width={"100%"} />;
+    return <BarLoader color="#d8b4fe" className="mt-4" width={"100%"} />;
   }
 
   if (!currentUser?.username) {
