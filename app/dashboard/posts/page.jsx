@@ -29,8 +29,6 @@ const PostsPage = () => {
   const { data: posts, isLoading } = useConvexQuery(api.posts.getUserPosts);
   const deletePost = useConvexMutation(api.posts.deletePost);
 
-  console.log(posts);
-
   const filteredPosts = useMemo(() => {
     if (!posts) return [];
 
