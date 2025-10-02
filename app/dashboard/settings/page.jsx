@@ -29,8 +29,6 @@ const SettingPage = () => {
     return <BarLoader color="#d8b4fe" width={"95%"} />;
   }
 
-  console.log("isLoading", isSubmitting);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 

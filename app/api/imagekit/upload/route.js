@@ -60,7 +60,6 @@ export async function POST(request) {
       name: uploadResponse.name,
     });
   } catch (error) {
-    console.error("ImageKit upload error:", error);
     return NextResponse.json(
       {
         success: false,

@@ -119,8 +119,6 @@ const ImageUploadModal = ({
     const file = acceptedFiles[0];
     if (!file) return;
 
-    console.log("file", file);
-
     if (!file.type.startsWith("image/")) {
       toast.error("Please upload a valid image file.");
       return;
@@ -148,7 +146,6 @@ const ImageUploadModal = ({
         toast.error(result.error || "Failed to upload image.");
       }
     } catch (error) {
-      console.error("Upload error:", error);
       toast.error("An error occurred during upload. Please try again.");
     } finally {
       setIsUploading(false);
@@ -245,12 +242,12 @@ const ImageUploadModal = ({
       setTransformedImage(transformedUrl);
       toast.success("Transformations applied!");
     } catch (error) {
-      console.error("Transformation error:", error);
-      toast.error("Failed to apply transformations");
+      toast.error("Failed to apply transformation");
     } finally {
       setIsTransforming(false);
     }
   };
+
   const resetTransformations = () => {
     reset();
     setTransformedImage(uploadedImage?.url);

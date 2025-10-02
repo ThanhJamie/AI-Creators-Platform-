@@ -107,6 +107,7 @@ const PostEditor = ({ initialData = null, mode = "create" }) => {
   });
   const { handleSubmit, watch, setValue } = form;
   const watchedValues = watch();
+
   useEffect(() => {
     if (!watchedValues.title && !watchedValues.content) return;
 
@@ -117,6 +118,7 @@ const PostEditor = ({ initialData = null, mode = "create" }) => {
     }, 30000);
 
     return () => clearInterval(autoSave);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchedValues.title, watchedValues.content]);
 
   const handleImageSelect = (imageData) => {

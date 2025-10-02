@@ -105,7 +105,6 @@ const PostEditorContent = ({ form, setQuillRef, onImageUpload }) => {
         type === "generate"
           ? await generateBlogContent(title, category, tags || [])
           : await improveContent(content, improvementType);
-      await console.log("result", result);
 
       if (result.success) {
         setValue("content", result.content);

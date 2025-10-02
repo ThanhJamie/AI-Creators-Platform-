@@ -52,7 +52,6 @@ Output only the blog post content (without repeating the title).
       content: content.trim(),
     };
   } catch (error) {
-    console.error("Error generating content:", error);
     if (error.message.includes("API key")) {
       return {
         success: false,
@@ -149,7 +148,6 @@ Requirements:
       content: improvedContent.trim(),
     };
   } catch (error) {
-    console.error("Content improvement error:", error);
     return {
       success: false,
       error: error.message || "Failed to improve content. Please try again.",

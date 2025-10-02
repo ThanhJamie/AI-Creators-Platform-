@@ -8,6 +8,7 @@ import { notFound } from "next/navigation";
 import React, { use } from "react";
 import PublicHeader from "./_components/public-header";
 import Image from "next/image";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,6 +40,12 @@ const ProfilePage = ({ params }) => {
     user ? { userId: user._id } : "skip"
   );
 
+  // Get following count
+  const { data: followingCount } = useConvexQuery(
+    api.follows.getFollowingCount,
+    user ? { userId: user._id } : "skip"
+  );
+
   // Check if current user is following this profile
   const { data: isFollowing } = useConvexQuery(
     api.follows.isFollowing,
@@ -52,7 +59,7 @@ const ProfilePage = ({ params }) => {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w -12 border-2 border-purple-500 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-purple-500 mx-auto mb-4"></div>
           <p className="text-slate-400">Loading profile...</p>
         </div>
       </div>
@@ -143,12 +150,26 @@ const ProfilePage = ({ params }) => {
             <div className="text-2xl font-bold text-white">{posts.length}</div>
             <div className="text-sm text-slate-400">Posts</div>
           </div>
-          <div className="text-center">
+          <Link
+            href={`/${username}/followers`}
+            className="text-center hover:bg-slate-800/50 rounded-lg p-2 transition-colors"
+          >
             <div className="text-2xl font-bold text-white">
               {followerCount || 0}
             </div>
             <div className="text-sm text-slate-400">Followers</div>
-          </div>
+          </Link>
+          {isOwnProfile && (
+            <Link
+              href={`/${username}/following`}
+              className="text-center hover:bg-slate-800/50 rounded-lg p-2 transition-colors"
+            >
+              <div className="text-2xl font-bold text-white">
+                {followingCount || 0}
+              </div>
+              <div className="text-sm text-slate-400">Following</div>
+            </Link>
+          )}
           <div className="text-center">
             <div className="text-2xl font-bold text-white">
               {posts

@@ -96,6 +96,19 @@ export const getFollowerCount = query({
   },
 });
 
+// Get following count for a user
+export const getFollowingCount = query({
+  args: { userId: v.optional(v.id("users")) },
+  handler: async (ctx, args) => {
+    const follows = await ctx.db
+      .query("follows")
+      .filter((q) => q.eq(q.field("followerId"), args.userId))
+      .collect();
+
+    return follows.length;
+  },
+});
+
 // Get followers of current user
 export const getMyFollowers = query({
   args: { limit: v.optional(v.number()) },
@@ -243,5 +256,110 @@ export const getMyFollowing = query({
     );
 
     return following.filter((user) => user !== null);
+  },
+});
+
+// Get followers of any user by username
+export const getFollowersByUsername = query({
+  args: { username: v.string(), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    // Get user by username
+    const user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("username"), args.username))
+      .unique();
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const limit = args.limit || 20;
+
+    // Get followers
+    const follows = await ctx.db
+      .query("follows")
+      .filter((q) => q.eq(q.field("followingId"), user._id))
+      .order("desc")
+      .take(limit);
+
+    // Get current user to check if they follow back
+    const identity = await ctx.auth.getUserIdentity();
+    let currentUser = null;
+    if (identity) {
+      currentUser = await ctx.db
+        .query("users")
+        .filter((q) =>
+          q.eq(q.field("tokenIdentifier"), identity.tokenIdentifier)
+        )
+        .unique();
+    }
+
+    // Get user details for each follower
+    const followers = await Promise.all(
+      follows.map(async (follow) => {
+        const follower = await ctx.db.get(follow.followerId);
+        if (!follower) return null;
+
+        // Check if this follower follows back the profile user
+        const followsBack = await ctx.db
+          .query("follows")
+          .filter((q) =>
+            q.and(
+              q.eq(q.field("followerId"), user._id),
+              q.eq(q.field("followingId"), follower._id)
+            )
+          )
+          .unique();
+
+        // Check if current user is following this follower
+        let currentUserFollows = false;
+        if (currentUser) {
+          const currentUserFollowsCheck = await ctx.db
+            .query("follows")
+            .filter((q) =>
+              q.and(
+                q.eq(q.field("followerId"), currentUser._id),
+                q.eq(q.field("followingId"), follower._id)
+              )
+            )
+            .unique();
+          currentUserFollows = !!currentUserFollowsCheck;
+        }
+
+        // Get follower count for this follower
+        const followerCount = await ctx.db
+          .query("follows")
+          .filter((q) => q.eq(q.field("followingId"), follower._id))
+          .collect();
+
+        // Get recent posts count
+        const recentPosts = await ctx.db
+          .query("posts")
+          .filter((q) =>
+            q.and(
+              q.eq(q.field("authorId"), follower._id),
+              q.eq(q.field("status"), "published")
+            )
+          )
+          .order("desc")
+          .take(3);
+
+        return {
+          _id: follower._id,
+          name: follower.name,
+          username: follower.username,
+          imageUrl: follower.imageUrl,
+          followedAt: follow.createdAt,
+          followsBack: !!followsBack,
+          currentUserFollows,
+          followerCount: followerCount.length,
+          postCount: recentPosts.length,
+          lastPostAt:
+            recentPosts.length > 0 ? recentPosts[0].publishedAt : null,
+        };
+      })
+    );
+
+    return followers.filter((user) => user !== null);
   },
 });
